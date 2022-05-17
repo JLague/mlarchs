@@ -1,9 +1,15 @@
 dataset:
   path: 'data'
-training:
+  shuffle: False
   batch_size: 64
-  shuffle: True
-  epochs: 10
+  seed: 42
+  split: 0.8
+  num_workers: 4
+optimizer:
+  lr: 0.01
+training:
+  epochs: 20
+  model: 'LeNet'
 defaults:
   - _self_
   - dataset: fashion-mnist

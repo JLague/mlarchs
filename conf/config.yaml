@@ -1,0 +1,10 @@
+dataset:
+  path: 'data'
+training:
+  batch_size: 64
+  shuffle: True
+  epochs: 10
+defaults:
+  - _self_
+  - dataset: fashion-mnist
+  - optimizer: adam

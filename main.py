@@ -25,10 +25,10 @@ def main(cfg):
     train_loader, val_loader, test_loader = load_data(cfg.dataset, cfg.model, project_root)
 
     # Model setup
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model_class = get_module_class(models, cfg.model.name)
     model = model_class(cfg.model.classes)
-    
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = nn.DataParallel(model)
     model.to(device)
     wandb.watch(model)
 
@@ -41,7 +41,7 @@ def main(cfg):
     test(model, test_loader, device, loss_fn)
 
 
-def load_data(dataset_cfg, model_cfg, project_root) -> tuple[DataLoader, DataLoader, DataLoader]:
+def load_data(dataset_cfg, model_cfg, project_root):
 
     data_root = f"{project_root}/data"
     

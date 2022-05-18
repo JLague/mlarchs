@@ -1,0 +1,8 @@
+name: 'LeNet'
+display_name: 'LeNet'
+dataset: 'FashionMNIST'
+batch_size: 64
+optim: 'Adam'
+lr: 0.01
+size: 28
+classes: 10

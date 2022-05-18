@@ -1,11 +1,13 @@
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader, random_split
-from datetime import datetime
-import torch.nn.functional as F
-import torch.nn as nn
+import math
+
 import torch
+import torch.nn as nn
 import hydra
 import wandb
+from datetime import datetime
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader, random_split
+
 import models
 
 WANDB_USER = 'jlague'
@@ -15,55 +17,64 @@ WANDB_PROJECT = 'mlarchs'
 @hydra.main(config_path="conf", config_name="config")
 def main(cfg):
     # WandB setup
-    display_name = f'{cfg.training.model}-{datetime.now().strftime("%d-%m-%y_%H-%M-%S")}'
-    wandb.init(project=WANDB_PROJECT, entity=WANDB_USER, config=cfg, group=cfg.training.model, name=display_name)
-
-    # Data setup
+    run_name = f'{cfg.model.display_name}-{datetime.now().strftime("%d-%m-%y_%H-%M-%S")}'
+    wandb.init(project=WANDB_PROJECT, entity=WANDB_USER, config=cfg, group=cfg.model.name, name=run_name)
+    
     project_root = hydra.utils.get_original_cwd()
-    train_loader, val_loader, test_loader = load_data(cfg.dataset, project_root)
+    torch.manual_seed(cfg.dataset.seed)
+    train_loader, val_loader, test_loader = load_data(cfg.dataset, cfg.model, project_root)
 
     # Model setup
-    model_class = getattr(models, cfg.training.model)
-    model = model_class()
+    model_class = get_module_class(models, cfg.model.name)
+    model = model_class(cfg.model.classes)
     
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model.to(device)
     wandb.watch(model)
 
     loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=cfg.optimizer.lr)
 
-    train(model, train_loader, val_loader, cfg.training.epochs, device, optimizer, loss_fn)
+    optim_class = get_module_class(torch.optim, cfg.model.optim)
+    optimizer = optim_class(model.parameters(), lr=cfg.model.lr)
+
+    train(model, train_loader, val_loader, cfg.train.epochs, device, optimizer, loss_fn)
     test(model, test_loader, device, loss_fn)
 
 
-def load_data(cfg, project_root) -> tuple[DataLoader, DataLoader, DataLoader]:
-    match cfg.name:
-        case "FashionMNIST":
-            dataset = datasets.FashionMNIST
-        case "CIFAR10":
-            dataset = datasets.CIFAR10
+def load_data(dataset_cfg, model_cfg, project_root) -> tuple[DataLoader, DataLoader, DataLoader]:
 
     data_root = f"{project_root}/data"
-    generator = torch.Generator().manual_seed(cfg.seed)
+    
+    train_transform = transforms.Compose([
+        transforms.Resize(model_cfg.size),
+        transforms.RandomHorizontalFlip(0.5),
+        transforms.RandomResizedCrop(model_cfg.size),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5], [0.5])
+    ])
 
-    train_data = dataset(
-        data_root, train=True, download=True, transform=transforms.ToTensor()
+    test_transform = transforms.Compose([
+        transforms.Resize(model_cfg.size),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5], [0.5])
+    ])
+
+    dataset_class = get_module_class(datasets, model_cfg.dataset)
+    train_data = dataset_class(
+        data_root, train=True, download=True, transform=train_transform
     )
-    test_data = dataset(
-        data_root, train=False, download=True, transform=transforms.ToTensor()
+    test_data = dataset_class(
+        data_root, train=False, download=True, transform=test_transform
     )
 
-    train_size = int(cfg.split * len(train_data))
+    train_size = int(dataset_cfg.split * len(train_data))
     val_size = len(train_data) - train_size
 
     train_data, val_data = random_split(train_data, [train_size, val_size])
 
     loader_args = dict(
-        generator=generator,
-        batch_size=cfg.batch_size,
-        shuffle=cfg.shuffle,
-        num_workers=cfg.num_workers,
+        batch_size=model_cfg.batch_size,
+        shuffle=dataset_cfg.shuffle,
     )
 
     train_loader = DataLoader(train_data, **loader_args)
@@ -73,6 +84,7 @@ def load_data(cfg, project_root) -> tuple[DataLoader, DataLoader, DataLoader]:
     return train_loader, val_loader, test_loader
 
 def train(model, train_loader, val_loader, epochs, device, optimizer, loss_fn):
+    best_loss = math.inf
     train_size = len(train_loader)
     val_size = len(val_loader)
     val_data_size = len(val_loader.dataset)
@@ -118,10 +130,20 @@ def train(model, train_loader, val_loader, epochs, device, optimizer, loss_fn):
         print(f'\t Validation loss: {val_loss}')
         print(f'\t Validation accuracy: {val_acc*100}%')
 
+        if val_loss < best_loss:
+            best_loss = val_loss
+            print(f'Saving model for epoch {epoch+1}')
+            torch.save({
+                'epoch': epoch+1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'loss': loss_fn,
+            }, 'best_model.pth')
+
 def test(model, dataloader, device, loss_fn):
-    model.eval()
     test_loss = 0
     test_acc = 0
+    model.eval()
     with torch.no_grad():
         for X, y in dataloader:
             X, y = X.to(device), y.to(device)
@@ -138,6 +160,10 @@ def test(model, dataloader, device, loss_fn):
 
     print(f'Test loss: {test_loss}')
     print(f'Test accuracy: {test_acc*100}%')
+
+def get_module_class(module, class_name):
+    return getattr(module, class_name)
+
 
 if __name__ == '__main__':
     main()

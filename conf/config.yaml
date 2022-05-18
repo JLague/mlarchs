@@ -1,16 +1,12 @@
 dataset:
   path: 'data'
   shuffle: False
-  batch_size: 64
   seed: 42
   split: 0.8
-  num_workers: 4
-optimizer:
-  lr: 0.01
-training:
-  epochs: 20
-  model: 'LeNet'
+
+train:
+  epochs: 50
+
 defaults:
+  - model: lenet
   - _self_
-  - dataset: fashion-mnist
-  - optimizer: adam

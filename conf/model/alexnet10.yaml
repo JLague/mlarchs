@@ -1,0 +1,8 @@
+name: 'AlexNet32'
+display_name: 'AlexNet10'
+dataset: 'CIFAR10'
+optim: 'Adadelta'
+batch_size: 64
+lr: 1
+size: 32
+classes: 10

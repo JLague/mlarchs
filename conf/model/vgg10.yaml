@@ -1,0 +1,8 @@
+name: 'VGG'
+display_name: 'VGG10'
+dataset: 'CIFAR10'
+batch_size: 64
+optim: 'Adadelta'
+lr: 0.01
+size: 224
+classes: 10

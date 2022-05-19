@@ -130,25 +130,25 @@ class VGG(nn.Module):
 
         self.conv = nn.Sequential(
             nn.Conv2d(3, 64, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(**pool_args),
             nn.Conv2d(64, 128, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(**pool_args),
             nn.Conv2d(128, 256, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(256, 256, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(**pool_args),
             nn.Conv2d(256, 512, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(**pool_args),
             nn.Conv2d(512, 512, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Conv2d(512, 512, **conv_args),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(**pool_args),
         )
 
@@ -156,10 +156,10 @@ class VGG(nn.Module):
 
         self.classifier = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(4096, 4096),
-            nn.ReLU(),
+            nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(4096, classes)
         )

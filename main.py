@@ -48,15 +48,12 @@ def load_data(dataset_cfg, model_cfg, project_root):
     train_transform = transforms.Compose([
         transforms.Resize(model_cfg.size),
         transforms.RandomHorizontalFlip(0.5),
-        transforms.RandomResizedCrop(model_cfg.size),
         transforms.ToTensor(),
-        transforms.Normalize([0.5], [0.5])
     ])
 
     test_transform = transforms.Compose([
         transforms.Resize(model_cfg.size),
         transforms.ToTensor(),
-        transforms.Normalize([0.5], [0.5])
     ])
 
     dataset_class = get_module_class(datasets, model_cfg.dataset)

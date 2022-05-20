@@ -1,11 +1,10 @@
-import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
 
 class LeNet(nn.Module):
-    def __init__(self, classes) -> None:
+    def __init__(self, classes=10) -> None:
         super(LeNet, self).__init__()
 
         activation_class = nn.Sigmoid
@@ -114,8 +113,9 @@ class AlexNet32(nn.Module):
         return x
 
 class VGG(nn.Module):
-    def __init__(self, classes):
+    def __init__(self, classes=10):
         super(VGG, self).__init__()
+
         conv_args = dict(
             kernel_size=3,
             stride=1,
@@ -169,3 +169,61 @@ class VGG(nn.Module):
         x = self.flatten(x)
         x = self.classifier(x)
         return F.softmax(x, dim=1)
+
+class MiniVGG(nn.Module):
+    def __init__(self, classes=10):
+        super(MiniVGG, self).__init__()
+
+        conv_args = dict(
+            kernel_size=3,
+            stride=1,
+            padding=1,
+        )
+
+        pool_args = dict(
+            kernel_size=2,
+            stride=2,
+            padding=0,
+        )
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(3, 32, **conv_args),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(32),
+            nn.Conv2d(32, 32, **conv_args),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(32),
+            nn.MaxPool2d(**pool_args),
+            nn.Dropout(0.25),
+            nn.Conv2d(32, 64, **conv_args),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.Conv2d(64, 64, **conv_args),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm2d(64),
+            nn.MaxPool2d(**pool_args),
+            nn.Dropout(0.25),
+        )
+
+        self.flatten = nn.Flatten()
+
+        self.classifier = nn.Sequential(
+            nn.Linear(64 * 8 * 8, 512),
+            nn.ReLU(inplace=True),
+            nn.BatchNorm1d(512),
+            nn.Dropout(0.5),
+            nn.Linear(512, classes),
+        )
+
+    def forward(self, x: Tensor):
+        x = self.conv(x)
+        x = self.flatten(x)
+        x = self.classifier(x)
+        return F.softmax(x, dim=1)
+
+class print_shape(nn.Module):
+    def __init__(self):
+        super(print_shape, self).__init__()
+    def forward(self, x: Tensor):
+        print(x.shape)
+        return x

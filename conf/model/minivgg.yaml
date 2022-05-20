@@ -1,0 +1,8 @@
+name: 'MiniVGG'
+display_name: 'MiniVGG'
+dataset: 'CIFAR10'
+batch_size: 64
+optim: 'SGD'
+lr: 0.01
+size: 32
+classes: 10

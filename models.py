@@ -1,6 +1,8 @@
+from venv import create
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms as transforms
 from torch import Tensor
 
 
@@ -169,3 +171,84 @@ class VGG(nn.Module):
         x = self.flatten(x)
         x = self.classifier(x)
         return F.softmax(x, dim=1)
+
+
+class UNet(nn.Module):
+    def __init__(self):
+        super(UNet, self).__init__()
+
+        self.contr1 = Contract(1, 64)
+        self.contr2 = Contract(64, 128)
+        self.contr3 = Contract(128, 256)
+        self.contr4 = Contract(256, 512)
+
+        self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.bottom = nn.Sequential(
+            nn.Conv2d(512, 1024, kernel_size=3),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(1024, 1024, kernel_size=3),
+        )
+
+        self.expand1 = Expand(1024, 512, 56)
+        self.expand2 = Expand(512, 256, 104)
+        self.expand3 = Expand(256, 128, 200)
+        self.expand4 = Expand(128, 64, 392)
+        self.final_conv = nn.Conv2d(64, 2, kernel_size=1)
+
+    
+    def forward(self, x: Tensor):
+        x1 = self.contr1(x)
+        x2 = self.contr2(self.maxpool(x1))
+        x3 = self.contr3(self.maxpool(x2))
+        x4 = self.contr4(self.maxpool(x3))
+        x = self.bottom(x4)
+        x = self.expand1(x4, x)
+        x = self.expand2(x3, x)
+        x = self.expand3(x2, x)
+        x = self.expand4(x1, x)
+        x = self.final_conv(x)
+        return x
+
+
+class Contract(nn.Module):
+    def __init__(self, in_channels, out_channels):
+        super(Contract, self).__init__()
+
+        self.contract = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3),
+            nn.ReLU(inplace=True),
+    )
+    
+    def forward(self, x: Tensor):
+        return self.contract(x)
+
+class Expand(nn.Module):
+    def __init__(self, in_channels, out_channels, img_size):
+        super(Expand, self).__init__()
+
+        self.crop = transforms.CenterCrop(img_size)
+
+        self.up_conv = nn.Conv2d(in_channels, out_channels, kernel_size=2)
+
+        self.conv = nn.Sequential(
+            nn.Conv2d(in_channels, out_channels, kernel_size=3),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(out_channels, out_channels, kernel_size=3),
+            nn.ReLU(inplace=True),
+        )
+
+    def forward(self, x: Tensor, y: Tensor):
+        x = self.crop(x)
+        y = self.up_conv(y)
+        z = torch.cat((x, y), dim=1)
+        z = self.conv(z)
+        return z
+
+if __name__ == '__main__':
+    from torchinfo import summary
+
+    model = UNet()
+    summary(model, input_size=(32, 1, 572, 572))
